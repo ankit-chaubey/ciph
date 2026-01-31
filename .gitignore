@@ -1,0 +1,30 @@
+# Compiled Binaries
+*.so
+*.o
+*.a
+*.la
+*.slo
+*.lo
+
+# C Build Artifacts
+_native/
+libciph.so
+
+# Python Build & Distribution
+__pycache__/
+*.py[cod]
+*$py.class
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Environment
+.venv/
+venv/
+ENV/
+.env
+
+# OS specific
+.DS_Store
+Thumbs.db

@@ -1,0 +1,49 @@
+name: ciph integration test
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev clang
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Python build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build setuptools wheel tqdm
+
+      - name: Build native library
+        run: |
+          make clean || true
+          make
+          mkdir -p ciph/_native
+          cp libciph.so ciph/_native/
+
+      - name: Install ciph package
+        run: |
+          pip install .
+
+      - name: Run integration test
+        env:
+          CIPH_PASSWORD: testpassword123
+        run: |
+          chmod +x test_ciph.sh
+          ./test_ciph.sh

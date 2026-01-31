@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ciph"
+version = "0.1.0"
+description = "Fast, streaming file encryption for large media files and cloud uploads"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache License 2.0" }
+
+authors = [
+    { name = "Ankit Chaubey", email = "m.ankitchaubey@gmail.com" }
+]
+
+dependencies = [
+    "tqdm>=4.60.0",
+]
+
+keywords = [
+    "encryption", "cryptography", "security", "aes", "chacha20", 
+    "argon2", "streaming", "files", "privacy"
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Security :: Cryptography",
+    "Topic :: System :: Archiving :: Backup",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Unix"
+]
+
+[project.urls]
+Homepage = "https://github.com/ankit-chaubey/ciph"
+Source = "https://github.com/ankit-chaubey/ciph"
+Issues = "https://github.com/ankit-chaubey/ciph/issues"
+
+[project.scripts]
+ciph = "ciph.cli:main"
