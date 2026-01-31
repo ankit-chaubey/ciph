@@ -1,5 +1,14 @@
 # ciph
 
+[![PyPI](https://img.shields.io/pypi/v/ciph.svg)](https://pypi.org/project/ciph/)
+[![Downloads](https://img.shields.io/pypi/dm/ciph.svg)](https://pypi.org/project/ciph/)
+[![Python](https://img.shields.io/pypi/pyversions/ciph.svg)](https://pypi.org/project/ciph/)
+[![CI](https://github.com/ankit-chaubey/ciph/actions/workflows/ciph-test.yml/badge.svg)](https://github.com/ankit-chaubey/ciph/actions/workflows/ciph-test.yml)
+[![License](https://img.shields.io/github/license/ankit-chaubey/ciph)](https://github.com/ankit-chaubey/ciph/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/tag/ankit-chaubey/ciph?label=release)](https://github.com/ankit-chaubey/ciph/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux-blue)](#)
+[![Crypto](https://img.shields.io/badge/crypto-AES--256--GCM%20%7C%20ChaCha20--Poly1305-blue)](#)
+
 **ciph** is a fast, streaming file‑encryption tool built for **large media files** and **cloud uploads**. It uses modern, industry‑standard cryptography and is designed to safely encrypt files **larger than your system RAM**.
 
 > Encrypt locally. Upload anywhere. Decrypt only when you trust the environment.
@@ -108,7 +117,7 @@ Output:
 video.mp4
 ```
 
-> The original filename and extension are automatically restored, even if the encrypted file was renamed.`
+> The original filename and extension are automatically restored, even if the encrypted file was renamed.
 
 ### Example workflow (Cloud / Telegram)
 
@@ -122,7 +131,7 @@ ciph decrypt movie.mkv.ciph
 
 ---
 
-## 📝 File Format (V2)
+## 📝 File Format
 
 | Offset | Size | Description                            |
 | ------ | ---- | -------------------------------------- |
