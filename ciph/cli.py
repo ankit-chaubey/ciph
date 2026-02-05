@@ -14,7 +14,8 @@ LIB.ciph_encrypt_stream.argtypes = [
 LIB.ciph_decrypt_stream.argtypes = [
     ctypes.c_void_p, ctypes.c_void_p,
     ctypes.c_char_p,
-    ctypes.c_char_p, ctypes.c_size_t
+    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_size_t
 ]
 
 libc = ctypes.CDLL(None)
