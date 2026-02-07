@@ -18,13 +18,11 @@ from tqdm import tqdm
 
 def _load_lib():
     here = os.path.dirname(__file__)
-
     local = os.path.join(here, "_native", "libciph.so")
     if os.path.exists(local):
         return ctypes.CDLL(local)
-
-    # Fallback: system / Termux loader
     return ctypes.CDLL("libciph.so")
+
 
 def _load_or_die():
     try:
@@ -119,9 +117,7 @@ def _die(rc):
 
 
 def _cipher(v):
-    if v == "chacha":
-        return 2
-    return 1
+    return 2 if v == "chacha" else 1
 
 
 def main():
@@ -203,7 +199,11 @@ def main():
             bar.update(total)
 
         else:
-            tmp = ".__ciph_tmp__"
+            enc_path = os.path.abspath(args.file)
+            enc_dir = os.path.dirname(enc_path)
+
+            tmp = os.path.join(enc_dir, ".__ciph_tmp__")
+
             fout_py = open(tmp, "wb")
             fout = _cfile(fout_py, b"wb")
 
@@ -221,9 +221,10 @@ def main():
                 os.remove(tmp)
                 _die(rc)
 
-            out = name_buf.value.decode() or "output.dec"
-            os.rename(tmp, out)
+            name = name_buf.value.decode() or "output.dec"
+            out = os.path.join(enc_dir, name)
 
+            os.replace(tmp, out)
             bar.update(total)
 
     fin_py.close()
