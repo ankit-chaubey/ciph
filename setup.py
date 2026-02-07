@@ -15,6 +15,11 @@ class CiphNative(Extension):
 
 class BuildNative(build_ext):
     def run(self):
+        # 🔹 Allow CI / PyPI to skip native build
+        if os.environ.get("CIPH_NO_BUILD") == "1":
+            print("⚠️  Skipping native libciph build (CIPH_NO_BUILD=1)")
+            return
+
         self._check_make()
         self._build_ciph()
         super().run()
@@ -49,11 +54,14 @@ class BuildNative(build_ext):
 setup(
     name="ciph",
     version="1.0.0",
-    description="High-performance streaming encryption engine",
+    description="Fast, streaming file encryption for large media files and cloud uploads",
     packages=find_packages(),
-    include_package_data=True,
+#    include_package_data=True,
+
+    # 🔹 Extension exists, but build is controlled by env var
     ext_modules=[CiphNative()],
     cmdclass={"build_ext": BuildNative},
+
     entry_points={
         "console_scripts": [
             "ciph=ciph.cli:main"

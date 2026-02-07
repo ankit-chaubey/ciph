@@ -18,8 +18,13 @@ from tqdm import tqdm
 
 def _load_lib():
     here = os.path.dirname(__file__)
-    return ctypes.CDLL(os.path.join(here, "_native", "libciph.so"))
 
+    local = os.path.join(here, "_native", "libciph.so")
+    if os.path.exists(local):
+        return ctypes.CDLL(local)
+
+    # Fallback: system / Termux loader
+    return ctypes.CDLL("libciph.so")
 
 def _load_or_die():
     try:
