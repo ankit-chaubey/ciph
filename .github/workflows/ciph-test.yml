@@ -2,10 +2,10 @@ name: ciph integration test
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ "v*" ]
+    branches: ["main"]
+    tags: ["v*"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   test:
@@ -18,7 +18,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsodium-dev clang
+          sudo apt-get install -y libsodium-dev build-essential
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,9 +28,9 @@ jobs:
       - name: Install Python build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build setuptools wheel tqdm
+          pip install setuptools wheel tqdm
 
-      - name: Build native library
+      - name: Build native CIPH library
         run: |
           make clean || true
           make
@@ -40,6 +40,13 @@ jobs:
       - name: Install ciph package
         run: |
           pip install .
+
+      - name: Verify libciph symbols
+        run: |
+          nm -D ciph/_native/libciph.so | grep ciph_encrypt_stream
+          nm -D ciph/_native/libciph.so | grep ciph_decrypt_stream
+          nm -D ciph/_native/libciph.so | grep ciph_set_chunk_mb
+          nm -D ciph/_native/libciph.so | grep ciph_strerror
 
       - name: Run integration test
         env:

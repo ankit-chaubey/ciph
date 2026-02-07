@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ciph"
-version = "0.1.1"
-description = "Fast, streaming file encryption for large media files and cloud uploads"
+version = "1.0.0"
+description = "High-performance streaming encryption engine for large files"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "Apache License 2.0" }
@@ -15,16 +15,23 @@ authors = [
 ]
 
 dependencies = [
-    "tqdm>=4.60.0",
+    "tqdm>=4.60.0"
 ]
 
 keywords = [
-    "encryption", "cryptography", "security", "aes", "chacha20", 
-    "argon2", "streaming", "files", "privacy"
+    "encryption",
+    "cryptography",
+    "security",
+    "aes",
+    "chacha20",
+    "streaming",
+    "files",
+    "privacy",
+    "libsodium"
 ]
 
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Security :: Cryptography",
     "Topic :: System :: Archiving :: Backup",
