@@ -1,6 +1,4 @@
 import os
-import shutil
-import subprocess
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -9,26 +7,27 @@ class CiphNative(Extension):
     def __init__(self):
         super().__init__(
             name="ciph._native.libciph",
-            sources=[]
+            sources=[],
         )
 
 
 class BuildNative(build_ext):
     def run(self):
-        # 🔹 Allow CI / PyPI to skip native build
-        if os.environ.get("CIPH_NO_BUILD") == "1":
-            print("⚠️  Skipping native libciph build (CIPH_NO_BUILD=1)")
+        # 🚫 Default: DO NOT build native code during packaging
+        if os.environ.get("CIPH_BUILD_NATIVE") != "1":
+            print("⚠️  Skipping native libciph build (set CIPH_BUILD_NATIVE=1 to enable)")
             return
 
-        self._check_make()
-        self._build_ciph()
-        super().run()
+        # ⚠️ Only for local dev / manual builds
+        self._build_native()
 
-    def _check_make(self):
+    def _build_native(self):
+        import shutil
+        import subprocess
+
         if shutil.which("make") is None:
             raise RuntimeError("make is required to build libciph")
 
-    def _build_ciph(self):
         root = os.path.abspath(os.path.dirname(__file__))
         native_dir = os.path.join(root, "ciph", "_native")
         os.makedirs(native_dir, exist_ok=True)
@@ -44,10 +43,6 @@ class BuildNative(build_ext):
 
         shutil.copy2(so, os.path.join(native_dir, "libciph.so"))
 
-        test = os.path.join(root, "test_ciph.sh")
-        if os.path.exists(test):
-            shutil.copy2(test, os.path.join(native_dir, "test_ciph.sh"))
-
         print("✅ libciph installed into ciph/_native")
 
 
@@ -56,19 +51,20 @@ setup(
     version="1.0.0",
     description="Fast, streaming file encryption for large media files and cloud uploads",
     packages=find_packages(),
-#    include_package_data=True,
+    include_package_data=False,
 
-    # 🔹 Extension exists, but build is controlled by env var
+    # Stub extension — real build happens at runtime via `ciph setup`
     ext_modules=[CiphNative()],
     cmdclass={"build_ext": BuildNative},
 
     entry_points={
         "console_scripts": [
-            "ciph=ciph.cli:main"
+            "ciph=ciph.cli:main",
         ]
     },
+
     python_requires=">=3.8",
     install_requires=[
-        "tqdm>=4.60.0"
+        "tqdm>=4.60.0",
     ],
 )
