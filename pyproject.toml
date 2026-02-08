@@ -11,36 +11,35 @@ requires-python = ">=3.8"
 license = "Apache-2.0"
 
 authors = [
-    { name = "Ankit Chaubey", email = "m.ankitchaubey@gmail.com" }
+  { name = "Ankit Chaubey", email = "m.ankitchaubey@gmail.com" }
 ]
 
 dependencies = [
-    "tqdm>=4.60.0"
+  "tqdm>=4.60.0"
 ]
 
 keywords = [
-    "encryption",
-    "cryptography",
-    "security",
-    "aes",
-    "chacha20",
-    "streaming",
-    "files",
-    "privacy",
-    "libsodium"
+  "encryption",
+  "cryptography",
+  "security",
+  "aes",
+  "chacha20",
+  "streaming",
+  "files",
+  "privacy",
+  "libsodium"
 ]
 
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "Topic :: Security :: Cryptography",
-    "Topic :: System :: Archiving :: Backup",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: C",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "Operating System :: POSIX :: Linux",
-    "Operating System :: Unix"
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Topic :: Security :: Cryptography",
+  "Topic :: System :: Archiving :: Backup",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Unix"
 ]
 
 [project.urls]
