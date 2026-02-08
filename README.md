@@ -19,16 +19,22 @@
 
 Most encryption tools load the entire file into memory before encrypting it. **ciph streams data in fixed-size chunks**, which means you can encrypt a **50 GB 4K video on a machine with only 2 GB of RAM**—smoothly and safely.
 
+Unlike archive-based or buffer-based tools, ciph never needs random access to plaintext and never allocates memory proportional to file size. Memory usage is deterministic and bounded.
+
+---
+
 ## ✨ Features
 
 * 🔐 **Strong encryption** — AES‑256‑GCM or ChaCha20‑Poly1305
 * 🔑 **Password protection** — Argon2id (memory‑hard key derivation)
-* 🚀 **High performance** — streaming C core (1 MB chunks)
+* 🚀 **High performance** — streaming C core with configurable chunk size
 * 🧠 **Constant memory usage** — works with 10 GB+ files
 * ⚙️ **Hardware‑aware** — AES‑NI when available, ChaCha fallback
 * 🧪 **Integrity protected** — AEAD authentication on every chunk
 * ☁️ **Cloud / Telegram safe** — encrypt before upload
 * 🏷️ **Filename preserved** — original filename & extension are stored and restored on decryption
+* 🧷 **Rename‑safe** — encrypted files may be freely renamed
+* 🧯 **Fail‑closed design** — corruption always aborts decryption
 
 ---
 
@@ -40,9 +46,9 @@ Most encryption tools load the entire file into memory before encrypting it. **c
 2. Your password is hardened using **Argon2id**.
 3. The data key is encrypted using the derived password key.
 4. Every chunk is authenticated to detect tampering.
-5. The **original filename (without path)** is stored as encrypted metadata and automatically restored on decryption.
+5. The **original filename (without path)** is stored as authenticated metadata and automatically restored on decryption.
 
-No custom crypto. No weak primitives.
+No custom crypto. No weak primitives. No silent failure modes.
 
 ---
 
@@ -71,19 +77,19 @@ Starting from **v1.2.0**, ciph introduces a **protocol‑level security hardenin
 
 ### What changed internally
 
-* 🔒 **Full metadata authentication (AAD binding)**
-  All file header fields (magic, version, cipher, salt, filename, encrypted key) are cryptographically bound to the encrypted content. Any modification causes decryption to fail.
+* 🔒 **Full metadata authentication (AAD binding)**  
+  All file header fields (magic, version, cipher, chunk size, salt, nonce key, filename, encrypted key) are cryptographically bound to the encrypted content. Any modification causes decryption to fail.
 
-* 🔑 **Strict key separation**
+* 🔑 **Strict key separation**  
   Encryption keys and nonce‑derivation keys are derived independently using domain separation. Keys are never reused across purposes.
 
-* 🔁 **Chunk replay & reordering protection**
+* 🔁 **Chunk replay & reordering protection**  
   Each encrypted chunk uses a nonce derived from a secret key and the chunk index. Chunks cannot be reordered, duplicated, or transplanted between files.
 
-* 🧼 **Explicit password handling**
+* 🧼 **Explicit password handling**  
   Passwords are treated as raw byte buffers with explicit length. No implicit string handling, truncation, or hidden transformations.
 
-* 🛡️ **DoS‑safe streaming**
+* 🛡️ **DoS‑safe streaming**  
   Encrypted chunk sizes are validated before allocation to prevent memory exhaustion attacks.
 
 ### What is now cryptographically impossible
@@ -95,8 +101,6 @@ Starting from **v1.2.0**, ciph introduces a **protocol‑level security hardenin
 * ❌ Reusing nonces under the same key
 * ❌ Injecting malformed headers that decrypt silently
 
-This update moves ciph from *"strong encryption"* to **"protocol‑hardened encryption"**, suitable for long‑term archival and hostile storage environments.
-
 ---
 
 ## 🚀 Quick Start (Build from Source)
@@ -107,6 +111,8 @@ cd ciph
 make
 pip install .
 ```
+
+---
 
 ## 📦 Installation
 
@@ -166,38 +172,37 @@ ciph decrypt movie.mkv.ciph
 
 ## 📝 File Format
 
-> **Updated & Hardened (v1.2.0)** — This section extends the original format without removing any fields. All existing fields remain valid; new guarantees and clarifications are added.
+> **Extended without removing any fields**. All original fields remain present; guarantees are clarified and enforced.
 
 ### Header Layout (Authenticated as AAD)
 
 | Offset | Size | Description                                            |
 | ------ | ---- | ------------------------------------------------------ |
 | 0      | 4    | Magic bytes (`CIPH`)                                   |
-| 4      | 1    | Format version (`0x02`)                                |
+| 4      | 1    | Format version                                         |
 | 5      | 1    | Cipher mode (1 = AES‑256‑GCM, 2 = ChaCha20‑Poly1305)   |
-| 6      | 16   | Argon2id salt (random per file)                        |
-| 22     | 12   | Nonce‑derivation key (random per file)                 |
-| 34     | 1    | Filename length (N)                                    |
-| 35     | N    | Original filename (UTF‑8, no path, not NUL‑terminated) |
-| 35+N   | 2    | Encrypted data‑key length (big‑endian)                 |
-| 37+N   | L    | Encrypted data key (AEAD‑protected)                    |
+| 6      | 4    | Chunk size in MB (big‑endian)                          |
+| 10     | 16   | Argon2id salt (random per file)                        |
+| 26     | 12   | Nonce‑derivation key (random per file)                 |
+| 38     | 1    | Filename length (N)                                    |
+| 39     | N    | Original filename (UTF‑8, no path, not NUL‑terminated) |
+| 39+N   | 2    | Encrypted data‑key length (big‑endian)                 |
+| 41+N   | L    | Encrypted data key (AEAD‑protected)                    |
 
 > **All header fields above are cryptographically authenticated (AAD)**. Any modification results in decryption failure.
 
 ### Encrypted Payload Layout (Streaming)
-
-The payload is a sequence of independently authenticated chunks:
 
 | Field     | Size | Description                                  |
 | --------- | ---- | -------------------------------------------- |
 | ChunkLen  | 4    | Length of encrypted chunk (ciphertext + tag) |
 | ChunkData | M    | AEAD‑encrypted chunk data                    |
 
-This pair repeats until end‑of‑file.
+This pair repeats until end‑of‑file. A final authenticated zero‑length chunk acts as an EOF marker.
 
-### Cryptographic Binding Guarantees (v1.2.0)
+### Cryptographic Binding Guarantees (v1.2.0+)
 
-The following properties are now **cryptographically enforced**, not policy‑based:
+The following properties are **cryptographically enforced**, not policy‑based:
 
 * Header ↔ payload binding (no metadata tampering)
 * Cipher mode binding (no downgrade attacks)
@@ -209,7 +214,7 @@ The following properties are now **cryptographically enforced**, not policy‑ba
 
 ## 📊 Performance
 
-* Processes data in **(4-1024) MB chunks**
+* Processes data in **(1–1024) MB chunks**
 * Cryptography handled in **C (libsodium)**
 * Python used only for CLI orchestration
 * Typical throughput: **hundreds of MB/s** (CPU‑bound)
@@ -243,7 +248,7 @@ The project focuses on building **secure, efficient, and practical cryptographic
 
 Apache License 2.0
 
-Copyright © 2026 Ankit Chaubey
+Copyright © 2026–present Ankit Chaubey
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at:
