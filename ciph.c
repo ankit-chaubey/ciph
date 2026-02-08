@@ -319,13 +319,21 @@ int ciph_decrypt_stream(
         return CIPH_ERR_IO;
 
     uint8_t name_len = fgetc(in);
+    if (name_len > 255) {
+    return CIPH_ERR_CORRUPT;
+    }
     uint8_t name_buf[256];
-    if (name_len) fread(name_buf, 1, name_len, in);
+    if (name_len) {
+    if (fread(name_buf, 1, name_len, in) != name_len) {
+        return CIPH_ERR_CORRUPT;
+    }
+    }
 
     uint16_t ek_len;
-    fread(&ek_len, 2, 1, in);
+    if (fread(&ek_len, 2, 1, in) != 1) {
+        return CIPH_ERR_CORRUPT;
+    }
     ek_len = ntohs(ek_len);
-
     uint8_t enc_data_key[128];
     if (ek_len > sizeof(enc_data_key) ||
         fread(enc_data_key, 1, ek_len, in) != ek_len)
