@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* Cipher identifiers */
 #define CIPH_AES    1
@@ -29,23 +30,25 @@
 #define CIPH_ERR_CRYPTO      -8
 #define CIPH_ERR_UNSUPPORTED -9
 
-/* Chunk size (MB), default = 4 */
+/* Chunk size (MB) */
 void ciph_set_chunk_mb(size_t mb);
 
-/* Encrypt stream */
+/* ===== SECURE API ===== */
+
 int ciph_encrypt_stream(
     FILE *in,
     FILE *out,
-    const char *password,
+    const uint8_t *password,
+    size_t password_len,
     int cipher,
     const char *original_name
 );
 
-/* Decrypt stream */
 int ciph_decrypt_stream(
     FILE *in,
     FILE *out,
-    const char *password,
+    const uint8_t *password,
+    size_t password_len,
     char *out_name,
     size_t out_name_len
 );

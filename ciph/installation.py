@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""
+ciph — Encryption Engine CLI
+© 2026 Ankit Chaubey (@ankit-chaubey)
+https://github.com/ankit-chaubey/ciph
+
+Licensed under the Apache License, Version 2.0
+https://www.apache.org/licenses/LICENSE-2.0
+"""
+
 import sys
 import shutil
 import subprocess

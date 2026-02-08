@@ -6,37 +6,79 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and follo
 
 ---
 
-## [1.0.0] — Final Stable Release
+## [1.2.0] — Protocol Hardening & Security Finalization
 
-**Release date:** 2026-02-07
+**Release date:** 2026-02-08
 
-This release marks the first **production‑ready**, **cryptographically stable**, and **performance‑validated** version of CIPH. The engine has been stress‑tested on multi‑gigabyte files, supports adaptive chunking, and guarantees data and filename integrity.
+This release introduces **protocol-level cryptographic hardening**. No user-facing workflow or CLI behavior has changed, but the internal security guarantees have been **formally strengthened and locked in**.
+
+This version elevates CIPH from *strong encryption* to a **vault-grade, protocol-hardened encryption format**.
 
 ### ✨ Added
 
-* Adaptive chunk decryption (auto‑grows buffers safely)
-* Runtime‑configurable chunk size (CLI, environment, API)
-* `ciph_set_chunk_mb()` public API
-* `ciph_strerror()` for human‑readable error reporting
-* Filename preservation and restoration on decrypt
-* AES‑256‑GCM and ChaCha20‑Poly1305 support
-* Automatic AES → ChaCha fallback on unsupported hardware
-* Streaming encryption/decryption for multi‑GB files
-* Integration test covering:
+* Full **header authentication (AAD binding)** — all metadata is cryptographically bound to encrypted content
+* Strict **key separation (domain separation)** between encryption keys and nonce-derivation keys
+* Deterministic, secret-derived **per-chunk nonces**
+* Explicit password API (raw bytes + explicit length)
+* Formal **file format v2 (hardened)** documentation
+* SECURITY.md describing threat model and guarantees
+* Enforced cryptographic invariants by design (not convention)
 
-  * Cross‑chunk encryption/decryption
-  * Cross‑cipher encryption/decryption
-  * Integrity verification (SHA‑256)
+### 🔒 Security
+
+* Prevents metadata tampering (magic, version, cipher, filename, salt)
+* Prevents cipher downgrade attacks
+* Prevents chunk replay, reordering, and cross-file transplantation
+* Prevents nonce reuse under the same key
+* Stronger resistance to malformed or malicious encrypted inputs (DoS hardening)
+* No master keys, recovery paths, or hidden decrypt logic
+
+### 🛠️ Changed
+
+* File format header is now **fully authenticated** using AEAD AAD
+* Python CLI updated to match hardened native API
+* Password handling no longer relies on C-string semantics
+* Cryptographic guarantees are enforced structurally, not by policy
+
+### ⚠️ Compatibility
+
+* User workflow and CLI usage remain unchanged
+* Existing encrypted files continue to decrypt correctly
+* Re-encryption is **not required**, but recommended for maximum guarantees
+
+---
+
+## [1.2.0] — Final Stable Release
+
+**Release date:** 2026-02-07
+
+This release marks the first **production-ready**, **cryptographically stable**, and **performance-validated** version of CIPH. The engine has been stress-tested on multi-gigabyte files, supports adaptive chunking, and guarantees data and filename integrity.
+
+### ✨ Added
+
+* Adaptive chunk decryption (auto-grows buffers safely)
+* Runtime-configurable chunk size (CLI, environment, API)
+* `ciph_set_chunk_mb()` public API
+* `ciph_strerror()` for human-readable error reporting
+* Filename preservation and restoration on decrypt
+* AES-256-GCM and ChaCha20-Poly1305 support
+* Automatic AES → ChaCha fallback on unsupported hardware
+* Streaming encryption/decryption for multi-GB files
+* Integration tests covering:
+
+  * Cross-chunk encryption/decryption
+  * Cross-cipher encryption/decryption
+  * Integrity verification (SHA-256)
   * Filename restoration after rename
-* GitHub Actions CI pipeline with native build + integration tests
+* GitHub Actions CI pipeline with native build and integration tests
 
 ### ⚡ Improved
 
-* Default chunk size increased to **4 MB** (better throughput)
+* Default chunk size increased to **4 MB** for better throughput
 * Constant memory usage regardless of file size
 * Faster encryption/decryption on large files
-* Robust error propagation from C → Python CLI
-* Cleaner, deterministic CLI UX with progress bars
+* Robust error propagation from C core to Python CLI
+* Cleaner, deterministic CLI UX with progress indicators
 
 ### 🔒 Security
 
@@ -47,19 +89,19 @@ This release marks the first **production‑ready**, **cryptographically stable*
 
 ### 🛠️ Changed
 
-* CLI defaults to AES (with automatic fallback)
-* Chunk size no longer required to match between encrypt/decrypt
-* Build system standardized via Makefile + setuptools
+* CLI defaults to AES with automatic ChaCha fallback
+* Chunk size no longer required to match between encrypt and decrypt
+* Build system standardized via Makefile and setuptools
 
 ### 🧹 Removed
 
-* Fixed‑size chunk assumptions
+* Fixed-size chunk assumptions
 * Silent failures and ambiguous error messages
 * Hard dependency on matching encryption parameters
 
 ---
 
-## [0.1.1] — Pre‑Stable Beta
+## [1.1.0] — Pre-Stable Beta
 
 ### Added
 
@@ -67,7 +109,7 @@ This release marks the first **production‑ready**, **cryptographically stable*
 * Python CLI wrapper
 * Basic AES and ChaCha support
 
-### Known Limitations (resolved in 1.0.0)
+### Known Limitations (resolved in 1.2.0)
 
 * Fixed chunk size
 * Weak error reporting
@@ -78,12 +120,12 @@ This release marks the first **production‑ready**, **cryptographically stable*
 
 ## Upgrade Notes
 
-Upgrading from **0.1.1 → 1.0.0** is fully backward‑compatible.
+Upgrading from **1.1.0 → 1.2.0** is fully backward-compatible.
 
-Encrypted files created with earlier versions **decrypt correctly** in 1.0.0.
+Encrypted files created with earlier versions **decrypt correctly** in 1.2.0.
 
 No action required.
 
 ---
 
-**CIPH 1.0.0 is production‑ready.**
+**CIPH 1.2.0 is protocol-hardened and audit-ready.**
