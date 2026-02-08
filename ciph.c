@@ -318,10 +318,11 @@ int ciph_decrypt_stream(
         fread(nonce_key, 1, NONCE_LEN, in) != NONCE_LEN)
         return CIPH_ERR_IO;
 
-    uint8_t name_len = fgetc(in);
-    if (name_len > 255) {
+    int c = fgetc(in);
+    if (c == EOF) {
     return CIPH_ERR_CORRUPT;
     }
+    uint8_t name_len = (uint8_t)c;
     uint8_t name_buf[256];
     if (name_len) {
     if (fread(name_buf, 1, name_len, in) != name_len) {
