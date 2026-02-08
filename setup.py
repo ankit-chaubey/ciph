@@ -12,6 +12,7 @@ class BuildCiphExt(build_ext):
 
         print("\n🔧 Building native libciph")
 
+        # Clean is best-effort
         try:
             subprocess.check_call(["make", "clean"], cwd=root)
         except Exception:
@@ -23,10 +24,10 @@ class BuildCiphExt(build_ext):
             libname = "libciph.so"
         elif sys.platform == "darwin":
             libname = "libciph.dylib"
-        elif sys.platform.startswith("win"):
+        elif sys.platform.startswith(("win32", "cygwin", "msys")):
             libname = "ciph.dll"
         else:
-            raise RuntimeError("Unsupported platform")
+            raise RuntimeError(f"Unsupported platform: {sys.platform}")
 
         src = os.path.join(root, libname)
         if not os.path.exists(src):
@@ -43,21 +44,17 @@ class BuildCiphExt(build_ext):
 
 # Dummy extension to force build_ext execution
 ext_modules = [
-    Extension(    "ciph._build",    sources=["ciph/_build.c"],)
+    Extension(
+        "ciph._build",
+        sources=["ciph/_build.c"],
+    )
 ]
 
 setup(
-    name="ciph",
-    version="1.2.2",
-    description="High-performance streaming encryption engine for large files",
-    long_description=open("README.md", encoding="utf-8").read(),
-    long_description_content_type="text/markdown",
-    license="Apache-2.0",
-    python_requires=">=3.8",
+
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["tqdm>=4.60.0"],
-    entry_points={"console_scripts": ["ciph=ciph.cli:main"]},
+
     ext_modules=ext_modules,
     cmdclass={"build_ext": BuildCiphExt},
 )
