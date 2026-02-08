@@ -14,10 +14,8 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-/* ================= FORMAT ================= */
-
 #define MAGIC   "CIPH"
-#define VERSION 2
+#define VERSION 3
 
 #define SALT_LEN   16
 #define KEY_LEN    32
@@ -29,42 +27,40 @@
 
 static size_t CHUNK_MB = DEFAULT_CHUNK_MB;
 
-/* ================= UTIL ================= */
-
 void ciph_set_chunk_mb(size_t mb) {
     if (mb < 1) mb = 1;
     if (mb > MAX_CHUNK_MB) mb = MAX_CHUNK_MB;
     CHUNK_MB = mb;
 }
 
-static size_t chunk_bytes(void) {
-    return CHUNK_MB * 1024 * 1024;
+static size_t chunk_bytes_mb(size_t mb) {
+    return mb * 1024 * 1024;
 }
 
 const char *ciph_strerror(int rc) {
     switch (rc) {
-        case CIPH_OK:               return "success";
-        case CIPH_ERR_PARAM:        return "invalid parameter";
-        case CIPH_ERR_MAGIC:        return "bad magic";
-        case CIPH_ERR_VERSION:      return "unsupported version";
-        case CIPH_ERR_PASSWORD:     return "wrong password";
-        case CIPH_ERR_CORRUPT:      return "corrupted data";
-        case CIPH_ERR_IO:           return "I/O error";
-        case CIPH_ERR_MEMORY:       return "out of memory";
-        case CIPH_ERR_CRYPTO:       return "cryptographic failure";
-        case CIPH_ERR_UNSUPPORTED:  return "unsupported cipher";
-        default:                    return "unknown error";
+        case CIPH_OK: return "success";
+        case CIPH_ERR_PARAM: return "invalid parameter";
+        case CIPH_ERR_MAGIC: return "bad magic";
+        case CIPH_ERR_VERSION: return "unsupported version";
+        case CIPH_ERR_PASSWORD: return "wrong password";
+        case CIPH_ERR_CORRUPT: return "corrupted data";
+        case CIPH_ERR_IO: return "I/O error";
+        case CIPH_ERR_MEMORY: return "out of memory";
+        case CIPH_ERR_CRYPTO: return "cryptographic failure";
+        case CIPH_ERR_UNSUPPORTED: return "unsupported cipher";
+        default: return "unknown error";
     }
 }
-
-/* ================= HEADER AAD ================= */
 
 static size_t build_header_aad(
     uint8_t *aad,
     int cipher,
+    uint32_t chunk_mb,
     const uint8_t *salt,
     const uint8_t *nonce_key,
-    const char *name,
+    const uint8_t *name,
+    uint8_t name_len,
     const uint8_t *enc_data_key,
     uint16_t enc_key_len
 ) {
@@ -74,15 +70,11 @@ static size_t build_header_aad(
     *p++ = VERSION;
     *p++ = (uint8_t)cipher;
 
+    uint32_t mb_net = htonl(chunk_mb);
+    memcpy(p, &mb_net, 4); p += 4;
+
     memcpy(p, salt, SALT_LEN); p += SALT_LEN;
     memcpy(p, nonce_key, NONCE_LEN); p += NONCE_LEN;
-
-    uint8_t name_len = 0;
-    if (name) {
-        size_t len = strlen(name);
-        if (len > 255) len = 255;
-        name_len = (uint8_t)len;
-    }
 
     *p++ = name_len;
     if (name_len) {
@@ -91,11 +83,8 @@ static size_t build_header_aad(
     }
 
     uint16_t ek_net = htons(enc_key_len);
-    memcpy(p, &ek_net, sizeof(uint16_t));
-    p += sizeof(uint16_t);
-
-    memcpy(p, enc_data_key, enc_key_len);
-    p += enc_key_len;
+    memcpy(p, &ek_net, 2); p += 2;
+    memcpy(p, enc_data_key, enc_key_len); p += enc_key_len;
 
     return (size_t)(p - aad);
 }
@@ -110,6 +99,8 @@ int ciph_encrypt_stream(
     int cipher,
     const char *original_name
 ) {
+    int rc = CIPH_OK;
+
     if (!in || !out || !password || password_len == 0)
         return CIPH_ERR_PARAM;
 
@@ -120,17 +111,17 @@ int ciph_encrypt_stream(
     if (sodium_init() < 0)
         return CIPH_ERR_CRYPTO;
 
-    size_t CHUNK = chunk_bytes();
-    int rc = CIPH_OK;
+    uint32_t file_chunk_mb = (uint32_t)CHUNK_MB;
+    size_t CHUNK = chunk_bytes_mb(file_chunk_mb);
 
     uint8_t salt[SALT_LEN];
+    uint8_t nonce_key[NONCE_LEN];
     uint8_t data_key[KEY_LEN];
     uint8_t derived[KEY_LEN];
-    uint8_t nonce_key[NONCE_LEN];
 
     randombytes_buf(salt, SALT_LEN);
-    randombytes_buf(data_key, KEY_LEN);
     randombytes_buf(nonce_key, NONCE_LEN);
+    randombytes_buf(data_key, KEY_LEN);
 
     if (crypto_pwhash(
         derived, KEY_LEN,
@@ -144,10 +135,8 @@ int ciph_encrypt_stream(
         goto cleanup_keys;
     }
 
-    /* Key separation */
-    uint8_t k_enc[KEY_LEN];
-    uint8_t k_nonce[KEY_LEN];
-    crypto_kdf_derive_from_key(k_enc,   KEY_LEN, 1, "CIPHenc", data_key);
+    uint8_t k_enc[KEY_LEN], k_nonce[KEY_LEN];
+    crypto_kdf_derive_from_key(k_enc, KEY_LEN, 1, "CIPHenc", data_key);
     crypto_kdf_derive_from_key(k_nonce, KEY_LEN, 2, "CIPHnon", data_key);
 
     uint8_t enc_data_key[KEY_LEN + crypto_aead_chacha20poly1305_ietf_ABYTES];
@@ -163,31 +152,38 @@ int ciph_encrypt_stream(
         goto cleanup_keys;
     }
 
-    /* Write header */
+    uint8_t name_len = 0;
+    const uint8_t *name_ptr = NULL;
+    if (original_name) {
+        size_t l = strlen(original_name);
+        if (l > 255) l = 255;
+        name_len = (uint8_t)l;
+        name_ptr = (const uint8_t *)original_name;
+    }
+
     fwrite(MAGIC, 1, 4, out);
     fputc(VERSION, out);
     fputc(cipher, out);
+
+    uint32_t mb_net = htonl(file_chunk_mb);
+    fwrite(&mb_net, 4, 1, out);
+
     fwrite(salt, 1, SALT_LEN, out);
     fwrite(nonce_key, 1, NONCE_LEN, out);
 
-    uint8_t name_len = 0;
-    if (original_name) {
-        size_t len = strlen(original_name);
-        if (len > 255) len = 255;
-        name_len = (uint8_t)len;
-    }
     fputc(name_len, out);
-    if (name_len) fwrite(original_name, 1, name_len, out);
+    if (name_len) fwrite(name_ptr, 1, name_len, out);
 
-    uint16_t ek = htons((uint16_t)enc_key_len);
-    fwrite(&ek, sizeof(uint16_t), 1, out);
+    uint16_t ek_net = htons((uint16_t)enc_key_len);
+    fwrite(&ek_net, 2, 1, out);
     fwrite(enc_data_key, 1, enc_key_len, out);
 
-    /* Build AAD */
     uint8_t header_aad[AAD_MAX];
     size_t hlen = build_header_aad(
-        header_aad, cipher, salt, nonce_key,
-        original_name, enc_data_key, (uint16_t)enc_key_len
+        header_aad, cipher, file_chunk_mb,
+        salt, nonce_key,
+        name_ptr, name_len,
+        enc_data_key, (uint16_t)enc_key_len
     );
 
     uint8_t *buf = malloc(CHUNK);
@@ -224,17 +220,48 @@ int ciph_encrypt_stream(
 
         if (ok != 0) {
             rc = CIPH_ERR_CRYPTO;
-            break;
+            goto cleanup_buf;
         }
 
         uint32_t clen = htonl((uint32_t)outlen);
-        fwrite(&clen, sizeof(uint32_t), 1, out);
+        fwrite(&clen, 4, 1, out);
         fwrite(outbuf, 1, outlen, out);
         idx++;
     }
 
+    {
+        uint8_t nonce[NONCE_LEN];
+        crypto_generichash(
+            nonce, NONCE_LEN,
+            (uint8_t *)&idx, sizeof(idx),
+            k_nonce, KEY_LEN
+        );
+
+        unsigned long long outlen = 0;
+        int ok = (cipher == CIPH_AES)
+            ? crypto_aead_aes256gcm_encrypt(
+                outbuf, &outlen,
+                NULL, 0,
+                header_aad, hlen,
+                NULL, nonce, k_enc)
+            : crypto_aead_chacha20poly1305_ietf_encrypt(
+                outbuf, &outlen,
+                NULL, 0,
+                header_aad, hlen,
+                NULL, nonce, k_enc);
+
+        if (ok != 0) {
+            rc = CIPH_ERR_CRYPTO;
+            goto cleanup_buf;
+        }
+
+        uint32_t clen = htonl((uint32_t)outlen);
+        fwrite(&clen, 4, 1, out);
+        fwrite(outbuf, 1, outlen, out);
+    }
+
 cleanup_buf:
-    if (buf)    { sodium_memzero(buf, CHUNK); free(buf); }
+    if (buf) { sodium_memzero(buf, CHUNK); free(buf); }
     if (outbuf) { sodium_memzero(outbuf, CHUNK); free(outbuf); }
 
 cleanup_keys:
@@ -255,6 +282,12 @@ int ciph_decrypt_stream(
     char *out_name,
     size_t out_name_len
 ) {
+    int rc = CIPH_OK;
+
+    uint8_t *buf = NULL, *outbuf = NULL;
+    uint8_t data_key[KEY_LEN], derived[KEY_LEN];
+    uint8_t k_enc[KEY_LEN], k_nonce[KEY_LEN];
+
     if (!in || !out || !password || password_len == 0)
         return CIPH_ERR_PARAM;
 
@@ -266,9 +299,19 @@ int ciph_decrypt_stream(
         return CIPH_ERR_MAGIC;
 
     int version = fgetc(in);
-    int cipher  = fgetc(in);
+    int cipher = fgetc(in);
     if (version != VERSION)
         return CIPH_ERR_VERSION;
+
+    uint32_t chunk_mb;
+    if (fread(&chunk_mb, 4, 1, in) != 1)
+        return CIPH_ERR_IO;
+    chunk_mb = ntohl(chunk_mb);
+
+    if (chunk_mb < 1 || chunk_mb > MAX_CHUNK_MB)
+        return CIPH_ERR_CORRUPT;
+
+    size_t CHUNK = chunk_bytes_mb(chunk_mb);
 
     uint8_t salt[SALT_LEN], nonce_key[NONCE_LEN];
     if (fread(salt, 1, SALT_LEN, in) != SALT_LEN ||
@@ -276,16 +319,11 @@ int ciph_decrypt_stream(
         return CIPH_ERR_IO;
 
     uint8_t name_len = fgetc(in);
-    if (name_len && out_name && out_name_len > name_len) {
-        fread(out_name, 1, name_len, in);
-        out_name[name_len] = '\0';
-    } else if (name_len) {
-        fseek(in, name_len, SEEK_CUR);
-    }
+    uint8_t name_buf[256];
+    if (name_len) fread(name_buf, 1, name_len, in);
 
     uint16_t ek_len;
-    if (fread(&ek_len, sizeof(uint16_t), 1, in) != 1)
-        return CIPH_ERR_IO;
+    fread(&ek_len, 2, 1, in);
     ek_len = ntohs(ek_len);
 
     uint8_t enc_data_key[128];
@@ -293,7 +331,11 @@ int ciph_decrypt_stream(
         fread(enc_data_key, 1, ek_len, in) != ek_len)
         return CIPH_ERR_CORRUPT;
 
-    uint8_t derived[KEY_LEN], data_key[KEY_LEN];
+    if (out_name && out_name_len > name_len) {
+        memcpy(out_name, name_buf, name_len);
+        out_name[name_len] = 0;
+    }
+
     if (crypto_pwhash(
         derived, KEY_LEN,
         (const char *)password, password_len,
@@ -301,49 +343,54 @@ int ciph_decrypt_stream(
         crypto_pwhash_OPSLIMIT_MODERATE,
         crypto_pwhash_MEMLIMIT_MODERATE,
         crypto_pwhash_ALG_DEFAULT
-    ) != 0)
-        return CIPH_ERR_CRYPTO;
+    ) != 0) {
+        rc = CIPH_ERR_CRYPTO;
+        goto cleanup;
+    }
 
     if (crypto_aead_chacha20poly1305_ietf_decrypt(
         data_key, NULL, NULL,
         enc_data_key, ek_len,
         NULL, 0,
         nonce_key, derived
-    ) != 0)
-        return CIPH_ERR_PASSWORD;
+    ) != 0) {
+        rc = CIPH_ERR_PASSWORD;
+        goto cleanup;
+    }
 
-    uint8_t k_enc[KEY_LEN], k_nonce[KEY_LEN];
-    crypto_kdf_derive_from_key(k_enc,   KEY_LEN, 1, "CIPHenc", data_key);
+    crypto_kdf_derive_from_key(k_enc, KEY_LEN, 1, "CIPHenc", data_key);
     crypto_kdf_derive_from_key(k_nonce, KEY_LEN, 2, "CIPHnon", data_key);
 
     uint8_t header_aad[AAD_MAX];
     size_t hlen = build_header_aad(
-        header_aad, cipher, salt, nonce_key,
-        out_name, enc_data_key, ek_len
+        header_aad, cipher, chunk_mb,
+        salt, nonce_key,
+        name_buf, name_len,
+        enc_data_key, ek_len
     );
 
-    size_t CHUNK = chunk_bytes();
-    uint8_t *buf = malloc(CHUNK + 64);
-    uint8_t *outbuf = malloc(CHUNK);
-    if (!buf || !outbuf) return CIPH_ERR_MEMORY;
+    buf = malloc(CHUNK + 64);
+    outbuf = malloc(CHUNK);
+    if (!buf || !outbuf) {
+        rc = CIPH_ERR_MEMORY;
+        goto cleanup;
+    }
 
     uint64_t idx = 0;
     while (1) {
         uint32_t clen_net;
-        if (fread(&clen_net, sizeof(uint32_t), 1, in) != 1)
+        if (fread(&clen_net, 4, 1, in) != 1)
             break;
 
         uint32_t clen = ntohl(clen_net);
-        if (clen > MAX_CHUNK_MB * 1024 * 1024 + 64) {
-            sodium_memzero(data_key, KEY_LEN);
-            free(buf); free(outbuf);
-            return CIPH_ERR_CORRUPT;
+        if (clen > CHUNK + 64) {
+            rc = CIPH_ERR_CORRUPT;
+            goto cleanup;
         }
 
         if (fread(buf, 1, clen, in) != clen) {
-            sodium_memzero(data_key, KEY_LEN);
-            free(buf); free(outbuf);
-            return CIPH_ERR_CORRUPT;
+            rc = CIPH_ERR_CORRUPT;
+            goto cleanup;
         }
 
         uint8_t nonce[NONCE_LEN];
@@ -367,20 +414,24 @@ int ciph_decrypt_stream(
                 nonce, k_enc);
 
         if (ok != 0) {
-            sodium_memzero(data_key, KEY_LEN);
-            free(buf); free(outbuf);
-            return CIPH_ERR_CORRUPT;
+            rc = CIPH_ERR_CORRUPT;
+            goto cleanup;
         }
+
+        if (outlen == 0)
+            break;
 
         fwrite(outbuf, 1, outlen, out);
         idx++;
     }
 
+cleanup:
+    if (buf) { sodium_memzero(buf, CHUNK + 64); free(buf); }
+    if (outbuf) { sodium_memzero(outbuf, CHUNK); free(outbuf); }
+
     sodium_memzero(data_key, KEY_LEN);
     sodium_memzero(derived, KEY_LEN);
     sodium_memzero(k_enc, KEY_LEN);
     sodium_memzero(k_nonce, KEY_LEN);
-    free(buf);
-    free(outbuf);
-    return CIPH_OK;
+    return rc;
 }
