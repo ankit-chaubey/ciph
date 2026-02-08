@@ -7,9 +7,10 @@
 
 .DEFAULT_GOAL := all
 
-CC ?= cc
-AR ?= ar
-RM ?= rm -f
+CC      ?= cc
+AR      ?= ar
+RM      ?= rm -f
+PREFIX  ?= /usr/local
 
 CFLAGS  = -O2 -Wall -Wextra -fPIC
 LDFLAGS =
@@ -21,21 +22,32 @@ HDR = ciph.h
 
 UNAME_S := $(shell uname -s)
 
+# -------------------------
+# Platform detection
+# -------------------------
+
 ifeq ($(UNAME_S),Linux)
-    SHARED = libciph.so
+    SHARED  = libciph.so
+    LDFLAGS += -shared -Wl,-soname,libciph.so
 endif
 
 ifeq ($(UNAME_S),Darwin)
-    SHARED = libciph.dylib
+    SHARED  = libciph.dylib
     LDFLAGS += -dynamiclib
 endif
 
 ifeq ($(findstring MINGW,$(UNAME_S)),MINGW)
-    SHARED = ciph.dll
+    SHARED  = libciph.dll
     LDFLAGS += -shared
 endif
 
 STATIC = libciph.a
+
+# -------------------------
+# Targets
+# -------------------------
+
+all: check shared static
 
 check:
 	@pkg-config --exists libsodium || ( \
@@ -49,26 +61,44 @@ check:
 		exit 1 \
 	)
 
-all: check shared static
-
 shared: $(SHARED)
 
 static: $(STATIC)
+
+# -------------------------
+# Build rules
+# -------------------------
 
 $(OBJ): $(SRC) $(HDR)
 	$(CC) $(CFLAGS) -c $(SRC) -o $(OBJ)
 
 $(SHARED): $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) -shared $(OBJ) -o $(SHARED) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(SHARED) $(LIBS)
 
 $(STATIC): $(OBJ)
 	$(AR) rcs $(STATIC) $(OBJ)
 
+# -------------------------
+# Install / Clean
+# -------------------------
+
+install:
+	install -Dm755 $(SHARED) $(PREFIX)/lib/$(SHARED)
+	install -Dm644 $(HDR) $(PREFIX)/include/ciph.h
+
 clean:
 	$(RM) $(OBJ) $(SHARED) $(STATIC)
 
-install:
-	install -Dm755 $(SHARED) /usr/local/lib/$(SHARED)
-	install -Dm644 $(HDR) /usr/local/include/ciph.h
+# -------------------------
+# Debug helper
+# -------------------------
 
-.PHONY: all check shared static clean install
+print-config:
+	@echo "OS      : $(UNAME_S)"
+	@echo "CC      : $(CC)"
+	@echo "CFLAGS  : $(CFLAGS)"
+	@echo "LDFLAGS : $(LDFLAGS)"
+	@echo "SHARED  : $(SHARED)"
+	@echo "PREFIX  : $(PREFIX)"
+
+.PHONY: all check shared static install clean print-config

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ciph"
-version = "1.2.1"
+version = "1.2.2"
 description = "High-performance streaming encryption engine for large files"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "Apache License 2.0" }
+license = "Apache-2.0"
 
 authors = [
     { name = "Ankit Chaubey", email = "m.ankitchaubey@gmail.com" }
