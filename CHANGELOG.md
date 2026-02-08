@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and follo
 
 ---
 
-## [1.2.0] — Protocol Hardening & Security Finalization
+## [1.2.1] — Protocol Hardening & Security Finalization
 
 **Release date:** 2026-02-08
 
@@ -20,35 +20,40 @@ This version elevates CIPH from *strong encryption* to a **vault-grade, protocol
 * Strict **key separation (domain separation)** between encryption keys and nonce-derivation keys
 * Deterministic, secret-derived **per-chunk nonces**
 * Explicit password API (raw bytes + explicit length)
-* Formal **file format v2 (hardened)** documentation
-* SECURITY.md describing threat model and guarantees
-* Enforced cryptographic invariants by design (not convention)
+* Formal **file format v2+ (hardened)** documentation
+* SECURITY.md describing threat model, invariants, and guarantees
+* Enforced cryptographic invariants by construction (not convention)
+* Header ↔ payload binding guarantees documented and locked
+* Deterministic EOF authentication semantics
 
 ### 🔒 Security
 
-* Prevents metadata tampering (magic, version, cipher, filename, salt)
+* Prevents metadata tampering (magic, version, cipher, chunk size, filename, salt)
 * Prevents cipher downgrade attacks
-* Prevents chunk replay, reordering, and cross-file transplantation
+* Prevents chunk replay, reordering, duplication, and cross-file transplantation
 * Prevents nonce reuse under the same key
 * Stronger resistance to malformed or malicious encrypted inputs (DoS hardening)
+* Explicit failure on truncation, corruption, or header manipulation
 * No master keys, recovery paths, or hidden decrypt logic
 
 ### 🛠️ Changed
 
 * File format header is now **fully authenticated** using AEAD AAD
-* Python CLI updated to match hardened native API
-* Password handling no longer relies on C-string semantics
-* Cryptographic guarantees are enforced structurally, not by policy
+* Python CLI bindings updated to match hardened native API semantics
+* Password handling no longer relies on C-string assumptions
+* Cryptographic guarantees are enforced structurally, not by policy or convention
+* Documentation aligned exactly with the shipped C implementation
 
 ### ⚠️ Compatibility
 
 * User workflow and CLI usage remain unchanged
 * Existing encrypted files continue to decrypt correctly
 * Re-encryption is **not required**, but recommended for maximum guarantees
+* No breaking API or ABI changes
 
 ---
 
-## [1.2.0] — Final Stable Release
+## [1.2.1] — Final Stable Release
 
 **Release date:** 2026-02-07
 
@@ -103,29 +108,35 @@ This release marks the first **production-ready**, **cryptographically stable**,
 
 ## [1.1.0] — Pre-Stable Beta
 
-### Added
+**Release date:** 2026-01 (approx.)
+
+### ✨ Added
 
 * Initial streaming encryption engine
 * Python CLI wrapper
 * Basic AES and ChaCha support
+* Early file-format layout
 
-### Known Limitations (resolved in 1.2.0)
+### ⚠️ Known Limitations (resolved in 1.2.1)
 
 * Fixed chunk size
 * Weak error reporting
 * No adaptive decryption
 * Limited test coverage
+* Partial header authentication
 
 ---
 
 ## Upgrade Notes
 
-Upgrading from **1.1.0 → 1.2.0** is fully backward-compatible.
+Upgrading from **1.2.0 → 1.2.1** is fully backward-compatible.
 
-Encrypted files created with earlier versions **decrypt correctly** in 1.2.0.
+Encrypted files created with earlier versions **decrypt correctly** in 1.2.1.
 
 No action required.
 
+For maximum long-term guarantees, re-encryption with ≥1.2.1 is recommended but not mandatory.
+
 ---
 
-**CIPH 1.2.0 is protocol-hardened and audit-ready.**
+**CIPH 1.2.1 is protocol-hardened, audit-ready, and designed for hostile storage environments.**
