@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ciph",
-    version="1.2.1",
+    version="1.2.2",
     description="Fast, streaming file encryption for large media files and cloud uploads",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

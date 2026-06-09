@@ -40,25 +40,23 @@ def _bind():
     global LIB
     LIB = _load_or_die()
 
-    # ===== FINAL SECURE API BINDINGS =====
-
     LIB.ciph_encrypt_stream.argtypes = [
-        ctypes.c_void_p,      # FILE *in
-        ctypes.c_void_p,      # FILE *out
-        ctypes.c_void_p,      # password bytes
-        ctypes.c_size_t,      # password length
-        ctypes.c_int,         # cipher
-        ctypes.c_char_p,      # original filename
+        ctypes.c_void_p,  # FILE *in
+        ctypes.c_void_p,  # FILE *out
+        ctypes.c_void_p,  # password bytes
+        ctypes.c_size_t,  # password length
+        ctypes.c_int,     # cipher
+        ctypes.c_char_p,  # original filename
     ]
     LIB.ciph_encrypt_stream.restype = ctypes.c_int
 
     LIB.ciph_decrypt_stream.argtypes = [
-        ctypes.c_void_p,      # FILE *in
-        ctypes.c_void_p,      # FILE *out
-        ctypes.c_void_p,      # password bytes
-        ctypes.c_size_t,      # password length
-        ctypes.c_char_p,      # output name buffer
-        ctypes.c_size_t,      # output name buffer size
+        ctypes.c_void_p,  # FILE *in
+        ctypes.c_void_p,  # FILE *out
+        ctypes.c_void_p,  # password bytes
+        ctypes.c_size_t,  # password length
+        ctypes.c_char_p,  # output name buffer
+        ctypes.c_size_t,  # output name buffer size
     ]
     LIB.ciph_decrypt_stream.restype = ctypes.c_int
 
@@ -69,7 +67,6 @@ def _bind():
     LIB.ciph_strerror.restype = ctypes.c_char_p
 
 
-# libc fdopen
 libc = ctypes.CDLL(None)
 fdopen = libc.fdopen
 fdopen.argtypes = [ctypes.c_int, ctypes.c_char_p]
@@ -95,7 +92,7 @@ def _password():
     p = os.getenv("CIPH_PASSWORD")
     if not p:
         p = getpass.getpass("Password: ")
-    return p.encode("utf-8")   # raw bytes
+    return p.encode("utf-8")
 
 
 def _apply_chunk(v):
@@ -184,7 +181,7 @@ def main():
                 os.path.basename(args.file).encode(),
             )
 
-            # AES fallback → ChaCha
+            # AES failed (probably no hardware support), fall back to chacha
             if rc != 0 and cipher == 1:
                 fout_py.close()
                 os.remove(out)
@@ -232,13 +229,14 @@ def main():
                 os.remove(tmp)
                 _die(rc)
 
+            # restore original filename from the header
             name = name_buf.value.decode() or "output.dec"
             out = os.path.join(enc_dir, name)
             os.replace(tmp, out)
             bar.update(total)
 
     fin_py.close()
-    print(f"[+] Output → {out}")
+    print(f"[+] Output -> {out}")
 
 
 if __name__ == "__main__":

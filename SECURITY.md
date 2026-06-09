@@ -1,98 +1,38 @@
 # Security Policy
 
-## 🔐 Security Overview
-
-**ciph** is a security-focused project that uses modern, well-reviewed cryptographic primitives (via **libsodium**) and a streaming design to safely encrypt large files.
-
-Security is a first-class concern for this project. If you discover a vulnerability or have concerns about the cryptographic design, please follow the responsible disclosure process below.
-
----
-
-## 🧪 Supported Versions
-
-The following versions currently receive security attention:
+## Supported versions
 
 | Version | Supported |
-| ------- | --------- |
-| 0.2.x   | ✅ Yes     |
-| 0.1.x   | ✅ Yes     |
-| < 0.1   | ❌ No      |
+|---------|-----------|
+| 1.2.x   | Yes       |
+| < 1.2   | No        |
 
----
+## Design
 
-## 🛡️ Cryptographic Design Principles
+- AES-256-GCM or ChaCha20-Poly1305 via libsodium
+- Argon2id for password KDF
+- AEAD authentication on every chunk
+- Per-chunk nonces derived from a secret key + index (no reuse)
+- Full header authenticated as AAD -- any tampering breaks decryption
+- Sensitive key material zeroed from memory after use
 
-ciph follows these core security principles:
+## Metadata note
 
-* Uses **standard, audited cryptography** (AES-256-GCM, ChaCha20-Poly1305, Argon2id)
-* Avoids custom cryptographic algorithms
-* Uses **streaming encryption** to prevent memory exhaustion
-* Applies **authenticated encryption (AEAD)** to detect tampering
-* Derives per-chunk nonces using a **key-derived, no-reuse scheme**
-* Clears sensitive key material from memory after use
+The original filename (without path) is stored in the encrypted file header. It's authenticated but not encrypted, so someone inspecting the file structure can see it. File contents are fully encrypted. If that matters for your use case, rename the file before encrypting.
 
-The design follows the same high-level envelope encryption pattern used in modern secure storage systems.
+## Reporting a vulnerability
 
----
+Don't open a public issue.
 
-## 📁 Metadata Considerations
+Email: m.ankitchaubey@gmail.com  
+Subject: `SECURITY: ciph vulnerability report`
 
-To improve usability, **ciph stores the original filename (without path)** inside the encrypted file header.
+Include: description, steps to reproduce, potential impact.  
+Response within 72 hours.
 
-* The filename is **not encrypted metadata** and may be visible to someone inspecting the file structure.
-* File *contents* remain fully encrypted and authenticated.
+## Out of scope
 
-If metadata privacy is critical for your use case, consider renaming files before encryption or using an additional wrapper.
-
----
-
-## 🚨 Reporting a Vulnerability
-
-If you believe you have found a security vulnerability:
-
-* **Do not open a public GitHub issue.**
-* Please report the issue privately.
-
-### Contact
-
-* Email: **m DOT ankitchaubey AT gmail DOT com**
-* Subject line: `SECURITY: ciph vulnerability report`
-
-Please include:
-
-* A clear description of the issue
-* Steps to reproduce (if applicable)
-* Potential impact
-* Any suggested fixes or references
-
-You will receive an acknowledgment within **72 hours**.
-
----
-
-## ⏱️ Disclosure Timeline
-
-* The maintainer will investigate all reports promptly.
-* If a vulnerability is confirmed, a fix will be developed and released.
-* Coordinated disclosure will be handled responsibly to protect users.
-
----
-
-## ⚠️ Scope Limitations
-
-The following are **out of scope** for vulnerability reports:
-
-* Lost or forgotten passwords
-* Weak user-chosen passwords
-* Compromised systems or malware
-* Attacks requiring physical access
-* Social engineering
-
----
-
-## 📜 Disclaimer
-
-This project is provided **"as is"**, without warranty of any kind.
-
-Cryptography is a complex field. While best practices are followed, no security software can guarantee absolute protection.
-
-Use responsibly.
+- Forgotten passwords (data is unrecoverable by design)
+- Weak user-chosen passwords
+- Compromised host systems
+- Physical access attacks

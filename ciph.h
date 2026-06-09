@@ -14,11 +14,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Cipher identifiers */
 #define CIPH_AES    1
 #define CIPH_CHACHA 2
 
-/* Return codes */
 #define CIPH_OK               0
 #define CIPH_ERR_PARAM       -1
 #define CIPH_ERR_MAGIC       -2
@@ -30,10 +28,7 @@
 #define CIPH_ERR_CRYPTO      -8
 #define CIPH_ERR_UNSUPPORTED -9
 
-/* Chunk size (MB) */
 void ciph_set_chunk_mb(size_t mb);
-
-/* ===== SECURE API ===== */
 
 int ciph_encrypt_stream(
     FILE *in,
@@ -53,7 +48,6 @@ int ciph_decrypt_stream(
     size_t out_name_len
 );
 
-/* Error string */
 const char *ciph_strerror(int rc);
 
 #endif /* CIPH_H */

@@ -1,9 +1,7 @@
-# =========================================================
 # ciph — Encryption Engine
 # © 2026 Ankit Chaubey (@ankit-chaubey)
 # https://github.com/ankit-chaubey/ciph
 # Apache License 2.0
-# =========================================================
 
 .DEFAULT_GOAL := all
 

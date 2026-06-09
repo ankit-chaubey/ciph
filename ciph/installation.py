@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 HERE = Path(__file__).resolve()
-REPO_ROOT = HERE.parents[1]        # ← go from ciph/ → repo root
+REPO_ROOT = HERE.parents[1]
 NATIVE_DIR = HERE.parent / "_native"
 LIB_NAME = "libciph.so"
 
@@ -39,7 +39,7 @@ def main():
     if not makefile.exists():
         die("Makefile not found")
 
-    print("🔧 Building native ciph engine")
+    print("Building native ciph engine")
 
     run(["make", "clean"], REPO_ROOT)
     run(["make"], REPO_ROOT)
@@ -51,8 +51,8 @@ def main():
     NATIVE_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy2(lib, NATIVE_DIR / LIB_NAME)
 
-    print("✅ libciph.so installed to ciph/_native")
-    print("✔ ciph setup complete")
+    print("libciph.so installed to ciph/_native")
+    print("ciph setup complete")
 
 
 if __name__ == "__main__":

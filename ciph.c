@@ -53,6 +53,8 @@ const char *ciph_strerror(int rc) {
     }
 }
 
+// builds the AAD blob that covers the entire header
+// chunk_mb is baked in so you cant swap chunks after the fact
 static size_t build_header_aad(
     uint8_t *aad,
     int cipher,
@@ -89,8 +91,6 @@ static size_t build_header_aad(
     return (size_t)(p - aad);
 }
 
-/* ================= ENCRYPT ================= */
-
 int ciph_encrypt_stream(
     FILE *in,
     FILE *out,
@@ -104,8 +104,7 @@ int ciph_encrypt_stream(
     if (!in || !out || !password || password_len == 0)
         return CIPH_ERR_PARAM;
 
-    if (cipher == CIPH_AES &&
-        !crypto_aead_aes256gcm_is_available())
+    if (cipher == CIPH_AES && !crypto_aead_aes256gcm_is_available())
         return CIPH_ERR_UNSUPPORTED;
 
     if (sodium_init() < 0)
@@ -135,10 +134,12 @@ int ciph_encrypt_stream(
         goto cleanup_keys;
     }
 
+    // split data_key into separate enc and nonce subkeys
     uint8_t k_enc[KEY_LEN], k_nonce[KEY_LEN];
     crypto_kdf_derive_from_key(k_enc, KEY_LEN, 1, "CIPHenc", data_key);
     crypto_kdf_derive_from_key(k_nonce, KEY_LEN, 2, "CIPHnon", data_key);
 
+    // wrap the data_key with the password-derived key
     uint8_t enc_data_key[KEY_LEN + crypto_aead_chacha20poly1305_ietf_ABYTES];
     unsigned long long enc_key_len = 0;
 
@@ -198,6 +199,7 @@ int ciph_encrypt_stream(
         size_t r = fread(buf, 1, CHUNK, in);
         if (r == 0) break;
 
+        // nonce is derived per-chunk so reuse is impossible
         uint8_t nonce[NONCE_LEN];
         crypto_generichash(
             nonce, NONCE_LEN,
@@ -229,6 +231,7 @@ int ciph_encrypt_stream(
         idx++;
     }
 
+    // empty final chunk signals end of stream
     {
         uint8_t nonce[NONCE_LEN];
         crypto_generichash(
@@ -271,8 +274,6 @@ cleanup_keys:
     sodium_memzero(k_nonce, KEY_LEN);
     return rc;
 }
-
-/* ================= DECRYPT ================= */
 
 int ciph_decrypt_stream(
     FILE *in,
@@ -319,22 +320,21 @@ int ciph_decrypt_stream(
         return CIPH_ERR_IO;
 
     int c = fgetc(in);
-    if (c == EOF) {
-    return CIPH_ERR_CORRUPT;
-    }
+    if (c == EOF)
+        return CIPH_ERR_CORRUPT;
+
     uint8_t name_len = (uint8_t)c;
     uint8_t name_buf[256];
     if (name_len) {
-    if (fread(name_buf, 1, name_len, in) != name_len) {
-        return CIPH_ERR_CORRUPT;
-    }
+        if (fread(name_buf, 1, name_len, in) != name_len)
+            return CIPH_ERR_CORRUPT;
     }
 
     uint16_t ek_len;
-    if (fread(&ek_len, 2, 1, in) != 1) {
+    if (fread(&ek_len, 2, 1, in) != 1)
         return CIPH_ERR_CORRUPT;
-    }
     ek_len = ntohs(ek_len);
+
     uint8_t enc_data_key[128];
     if (ek_len > sizeof(enc_data_key) ||
         fread(enc_data_key, 1, ek_len, in) != ek_len)
@@ -357,6 +357,7 @@ int ciph_decrypt_stream(
         goto cleanup;
     }
 
+    // wrong password shows up here as a MAC failure
     if (crypto_aead_chacha20poly1305_ietf_decrypt(
         data_key, NULL, NULL,
         enc_data_key, ek_len,
@@ -427,6 +428,7 @@ int ciph_decrypt_stream(
             goto cleanup;
         }
 
+        // outlen == 0 means we hit the terminal chunk
         if (outlen == 0)
             break;
 
