@@ -51,6 +51,6 @@ PRs that break tests won't be merged.
 
 ## Reporting security issues
 
-Don't open a public issue. Email: m.ankitchaubey@gmail.com with subject `SECURITY: ciph vulnerability report`
+Don't open a public issue. Email: ankitchaubey.dev@gmail.com with subject `SECURITY: ciph vulnerability report`
 
 Response within 72 hours.

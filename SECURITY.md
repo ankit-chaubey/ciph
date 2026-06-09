@@ -24,7 +24,7 @@ The original filename (without path) is stored in the encrypted file header. It'
 
 Don't open a public issue.
 
-Email: m.ankitchaubey@gmail.com  
+Email: ankitchaubey.dev@gmail.com  
 Subject: `SECURITY: ciph vulnerability report`
 
 Include: description, steps to reproduce, potential impact.  

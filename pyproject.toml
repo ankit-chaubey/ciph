@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 license = { text = "Apache License 2.0" }
 
 authors = [
-    { name = "Ankit Chaubey", email = "m.ankitchaubey@gmail.com" }
+    { name = "Ankit Chaubey", email = "ankitchaubey.dev@gmail.com" }
 ]
 
 dependencies = [
